@@ -202,9 +202,11 @@ function EventRow({ event, happeningNow }: { event: AsuEvent; happeningNow: bool
 }
 
 function FormattedAnswer({ answer }: { answer: string }) {
+  const displayAnswer = answer.replace(/^\s*\*\s+/gm, "• ");
+
   return (
     <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-700">
-      {answer.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+      {displayAnswer.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
         part.startsWith("**") && part.endsWith("**") ? (
           <strong key={index} className="font-extrabold text-ink">
             {part.slice(2, -2)}
