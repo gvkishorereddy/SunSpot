@@ -14,7 +14,9 @@ import {
   MapPin,
   RefreshCw,
   Send,
+  Sparkles,
   SunMedium,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -29,6 +31,10 @@ import {
   formatAsuEventTime,
   groupTodayEvents,
 } from "@/lib/asu-events";
+import {
+  buildCrowdForecast,
+  type CrowdForecastPoint,
+} from "@/lib/crowd-forecast";
 import { resolveCrowdSignal } from "@/lib/crowd-estimate";
 import { evaluateBuildingHours } from "@/lib/operating-hours";
 import { crowdLabel, type RecentReport } from "@/lib/study-scout";
@@ -65,6 +71,18 @@ type EventsPayload = {
   events: AsuEvent[];
   fetchedAt: string;
   sourceUrl: string;
+};
+
+type AskPayload = {
+  answer: string;
+  mode: "ai" | "retrieval";
+  notice: string | null;
+  sources: Array<{
+    id: string;
+    title: string;
+    url: string;
+    excerpt: string;
+  }>;
 };
 
 type LocationState =
@@ -108,6 +126,15 @@ function hoursTone(status: "open" | "closed" | "unknown") {
   if (status === "open") return "bg-emerald-50 text-emerald-700 ring-emerald-600/15";
   if (status === "closed") return "bg-stone-100 text-stone-700 ring-stone-500/15";
   return "bg-amber-50 text-amber-800 ring-amber-600/15";
+}
+
+function forecastBarTone(point: CrowdForecastPoint) {
+  if (point.status === "live") return "bg-sky-500";
+  if (point.score === null) return "bg-stone-300";
+  if (point.score <= 3) return "bg-emerald-500";
+  if (point.score <= 6) return "bg-amber-400";
+  if (point.score <= 8) return "bg-orange-500";
+  return "bg-rose-600";
 }
 
 function locationMessage(state: LocationState) {
@@ -194,6 +221,10 @@ export function StudyScout() {
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [locationState, setLocationState] = useState<LocationState>("idle");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const [question, setQuestion] = useState("");
+  const [askLoading, setAskLoading] = useState(false);
+  const [askError, setAskError] = useState(false);
+  const [askResult, setAskResult] = useState<AskPayload | null>(null);
   const [now, setNow] = useState<Date | null>(null);
 
   const campuses = useMemo(
@@ -231,6 +262,14 @@ export function StudyScout() {
   const todayEvents = useMemo(
     () => (now ? groupTodayEvents(events, now) : { happeningNow: [], laterToday: [] }),
     [events, now],
+  );
+
+  const crowdForecast = useMemo(
+    () =>
+      selectedBuilding && now
+        ? buildCrowdForecast(selectedBuilding, events, reports, now)
+        : [],
+    [selectedBuilding, events, reports, now],
   );
 
   const reportsAllowed = operatingStatus?.isOpen === true;
@@ -349,6 +388,10 @@ export function StudyScout() {
     setEvents([]);
     setEventsError(false);
     setEventsSourceUrl(ASU_EVENTS_SOURCE);
+    setQuestion("");
+    setAskLoading(false);
+    setAskError(false);
+    setAskResult(null);
   }
 
   function chooseBuilding(id: string) {
@@ -448,6 +491,32 @@ export function StudyScout() {
     }
   }
 
+  async function askSunSpot(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedQuestion = question.trim();
+    if (!selectedBuildingId || trimmedQuestion.length < 3) return;
+
+    setAskLoading(true);
+    setAskError(false);
+    setAskResult(null);
+    try {
+      const response = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          buildingId: selectedBuildingId,
+          question: trimmedQuestion,
+        }),
+      });
+      if (!response.ok) throw new Error("Unable to answer question");
+      setAskResult((await response.json()) as AskPayload);
+    } catch {
+      setAskError(true);
+    } finally {
+      setAskLoading(false);
+    }
+  }
+
   const displayScore = crowdSignal?.score ?? averageCrowdLevel;
   const displayLabel = crowdSignal?.label ?? crowdLabel(averageCrowdLevel);
 
@@ -544,6 +613,14 @@ export function StudyScout() {
             <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
           </div>
 
+          {selectedBuilding && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 px-1 text-sm text-stone-500">
+              <CalendarDays aria-hidden="true" className="shrink-0 text-maroon" size={16} />
+              <span className="font-bold text-stone-700">Today’s hours:</span>
+              <span>{operatingStatus?.todayHours ?? "Calculating…"}</span>
+            </div>
+          )}
+
           {buildingsError && (
             <div role="alert" className="mt-3 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-800">
               <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={17} />
@@ -555,70 +632,6 @@ export function StudyScout() {
         {selectedBuilding ? (
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-start">
             <div className="flex flex-col gap-7">
-              <section aria-labelledby="building-heading" className="order-2 rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-maroon/8 px-2.5 py-1 text-xs font-extrabold text-maroon">
-                        {selectedBuilding.category}
-                      </span>
-                      <span className="rounded-full bg-gold/20 px-2.5 py-1 text-xs font-extrabold text-stone-700">
-                        {selectedBuilding.campus}
-                      </span>
-                    </div>
-                    <h2 id="building-heading" className="mt-3 text-2xl font-black tracking-tight text-ink sm:text-3xl">
-                      {selectedBuilding.name}
-                    </h2>
-                    {selectedBuilding.address && (
-                      <p className="mt-2 flex items-start gap-2 text-sm leading-6 text-stone-500">
-                        <MapPin aria-hidden="true" className="mt-1 shrink-0" size={15} />
-                        {selectedBuilding.address}
-                      </p>
-                    )}
-                  </div>
-                  {operatingStatus ? (
-                    <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-extrabold ring-1 ring-inset ${hoursTone(operatingStatus.status)}`}>
-                      {operatingStatus.status === "open" ? "Open now" : operatingStatus.status === "closed" ? "Closed" : "Check hours"}
-                    </span>
-                  ) : (
-                    <span className="h-8 w-24 animate-pulse rounded-full bg-stone-100" />
-                  )}
-                </div>
-
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-stone-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-stone-400">
-                      <CalendarDays aria-hidden="true" size={15} /> Today’s hours
-                    </div>
-                    <p className="mt-2 font-extrabold text-ink">{operatingStatus?.todayHours ?? "Calculating…"}</p>
-                  </div>
-                  <div className="rounded-2xl bg-stone-50 p-4">
-                    <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-stone-400">
-                      <Clock3 aria-hidden="true" size={15} /> Current status
-                    </div>
-                    <p className="mt-2 font-extrabold text-ink">
-                      {operatingStatus?.status === "closed"
-                        ? `${selectedBuilding.name} is closed${operatingStatus.nextOpening ? ` · Opens ${operatingStatus.nextOpening}` : ""}`
-                        : operatingStatus?.statusDetail ?? "Calculating…"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-semibold text-stone-500">
-                  {selectedBuilding.official_hours_url && (
-                    <a className="inline-flex items-center gap-1.5 text-maroon hover:underline" href={selectedBuilding.official_hours_url} target="_blank" rel="noreferrer">
-                      Official hours <ExternalLink aria-hidden="true" size={13} />
-                    </a>
-                  )}
-                  {selectedBuilding.location_source_url && (
-                    <a className="inline-flex items-center gap-1.5 text-maroon hover:underline" href={selectedBuilding.location_source_url} target="_blank" rel="noreferrer">
-                      Location details <ExternalLink aria-hidden="true" size={13} />
-                    </a>
-                  )}
-                  <span>Hours checked {formatVerifiedDate(selectedBuilding.hours_verified_on)}</span>
-                </div>
-              </section>
-
               <section aria-labelledby="events-heading" className="order-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
@@ -694,9 +707,20 @@ export function StudyScout() {
                         Crowd level
                       </h2>
                     </div>
-                    <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${reportTone(displayScore)}`}>
-                      {displayLabel}
-                    </span>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {operatingStatus && (
+                        <span className={`rounded-full px-3 py-1.5 text-sm font-extrabold ring-1 ring-inset ${hoursTone(operatingStatus.status)}`}>
+                          {operatingStatus.status === "open"
+                            ? "Open now"
+                            : operatingStatus.status === "closed"
+                              ? "Closed"
+                              : "Check hours"}
+                        </span>
+                      )}
+                      <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${reportTone(displayScore)}`}>
+                        {displayLabel}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="mt-6 grid grid-cols-2 divide-x divide-stone-200 rounded-2xl bg-stone-50 p-4">
@@ -738,6 +762,71 @@ export function StudyScout() {
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {crowdForecast.length > 0 && (
+                    <div className="mt-6 border-t border-stone-100 pt-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp aria-hidden="true" className="text-maroon" size={18} />
+                            <h3 className="font-extrabold text-ink">Today’s crowd forecast</h3>
+                          </div>
+                          <p className="mt-1 text-xs leading-5 text-stone-500">
+                            Hourly projection for the rest of today in Arizona time.
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-extrabold text-violet-700">
+                          Forecast
+                        </span>
+                      </div>
+
+                      <div className="mt-5 overflow-x-auto pb-2">
+                        <ol className="flex min-w-max items-end gap-2" aria-label="Hourly crowd forecast">
+                          {crowdForecast.map((point) => (
+                            <li
+                              key={point.at}
+                              className="w-16 shrink-0 text-center"
+                              title={point.explanation}
+                              aria-label={`${point.timeLabel}: ${point.score === null ? point.label : `${point.label}, ${point.score} out of 10`}${point.eventCount ? `, ${point.eventCount} ${point.eventCount === 1 ? "event" : "events"}` : ""}`}
+                            >
+                              <p className="mb-1 text-xs font-black tabular-nums text-ink">
+                                {point.score ?? "—"}
+                              </p>
+                              <div className="mx-auto flex h-24 w-10 items-end rounded-xl bg-stone-100 p-1" aria-hidden="true">
+                                <span
+                                  className={`w-full rounded-lg ${forecastBarTone(point)}`}
+                                  style={{
+                                    height:
+                                      point.score === null
+                                        ? "6px"
+                                        : `${Math.max(12, point.score * 10)}%`,
+                                  }}
+                                />
+                              </div>
+                              <p className="mt-2 text-xs font-bold text-stone-700">{point.timeLabel}</p>
+                              <p className={`mt-0.5 truncate text-[10px] font-semibold ${point.eventCount ? "text-maroon" : "text-stone-400"}`}>
+                                {point.status === "live"
+                                  ? "Live"
+                                  : point.eventCount
+                                    ? `${point.eventCount} ${point.eventCount === 1 ? "event" : "events"}`
+                                    : point.label}
+                              </p>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold text-stone-500" aria-label="Forecast inputs">
+                        <span className="rounded-lg bg-stone-100 px-2 py-1">Operating hours</span>
+                        <span className="rounded-lg bg-stone-100 px-2 py-1">Academic calendar</span>
+                        <span className="rounded-lg bg-stone-100 px-2 py-1">ASU events</span>
+                        <span className="rounded-lg bg-stone-100 px-2 py-1">Recent reports</span>
+                      </div>
+                      <p className="mt-3 text-[11px] leading-5 text-stone-400">
+                        Forecasts are estimates, not live measurements. Event effects appear after the official ASU event schedule loads.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -902,6 +991,122 @@ export function StudyScout() {
                   <p>Location checks approximate proximity and can be spoofed. Your precise coordinates are never stored.</p>
                 </div>
               </form>
+
+              <section aria-labelledby="ask-heading" className="mt-7 overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-card">
+                <div className="bg-gradient-to-br from-violet-50 via-white to-gold/10 p-5 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700">
+                      <Sparkles aria-hidden="true" size={20} />
+                    </span>
+                    <div>
+                      <p className="eyebrow">Grounded campus answers</p>
+                      <h2 id="ask-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+                        Ask SunSpot
+                      </h2>
+                      <p className="mt-2 text-sm leading-6 text-stone-500">
+                        Ask about ASU building hours, locations, today’s events, or study options across campus.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2" aria-label="Suggested questions">
+                    {[
+                      "Which Tempe study spot is quietest right now?",
+                      "What events are happening on the Tempe campus today?",
+                      "Is Hayden Library open tonight?",
+                    ].map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => {
+                          setQuestion(suggestion);
+                          setAskError(false);
+                          setAskResult(null);
+                        }}
+                        className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-left text-xs font-bold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+
+                  <form onSubmit={askSunSpot} className="mt-4">
+                    <label htmlFor="sunspot-question" className="sr-only">Ask a question about the selected building</label>
+                    <textarea
+                      id="sunspot-question"
+                      value={question}
+                      onChange={(event) => {
+                        setQuestion(event.target.value);
+                        setAskError(false);
+                      }}
+                      maxLength={300}
+                      rows={3}
+                      placeholder="e.g. Is this building open after my 7 PM class?"
+                      className="w-full resize-none rounded-2xl border border-violet-200 bg-white p-3.5 text-sm leading-6 text-ink outline-none transition placeholder:text-stone-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+                    />
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium tabular-nums text-stone-400">{question.length}/300</span>
+                      <button
+                        type="submit"
+                        disabled={askLoading || question.trim().length < 3}
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-extrabold text-white transition hover:bg-violet-800 focus:outline-none focus:ring-4 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-stone-300"
+                      >
+                        {askLoading ? <RefreshCw aria-hidden="true" className="animate-spin" size={16} /> : <Sparkles aria-hidden="true" size={16} />}
+                        {askLoading ? "Checking ASU sources…" : "Get answer"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="border-t border-stone-100 p-5 sm:p-6" aria-live="polite">
+                  {askLoading ? (
+                    <div className="space-y-2" aria-label="Loading answer">
+                      <div className="h-4 w-11/12 animate-pulse rounded bg-stone-100" />
+                      <div className="h-4 w-full animate-pulse rounded bg-stone-100" />
+                      <div className="h-4 w-8/12 animate-pulse rounded bg-stone-100" />
+                    </div>
+                  ) : askError ? (
+                    <div role="alert" className="flex items-start gap-2 text-sm font-semibold text-rose-700">
+                      <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={17} />
+                      SunSpot could not check the ASU sources. Try again in a moment.
+                    </div>
+                  ) : askResult ? (
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${askResult.mode === "ai" ? "bg-violet-100 text-violet-700" : "bg-sky-50 text-sky-700"}`}>
+                          {askResult.mode === "ai" ? "ASU Air answer" : "Source summary"}
+                        </span>
+                        <span className="text-xs font-semibold text-stone-400">Grounded in {askResult.sources.length} sources</span>
+                      </div>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-700">{askResult.answer}</p>
+                      {askResult.notice && (
+                        <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">{askResult.notice}</p>
+                      )}
+                      <div className="mt-4 border-t border-stone-100 pt-4">
+                        <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-stone-400">ASU sources</p>
+                        <ul className="mt-2 space-y-2">
+                          {askResult.sources.map((source) => (
+                            <li key={source.id}>
+                              <a
+                                href={source.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-start gap-1.5 text-xs font-bold leading-5 text-maroon hover:underline"
+                              >
+                                {source.title} <ExternalLink aria-hidden="true" className="mt-0.5 shrink-0" size={12} />
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-6 text-stone-500">
+                      Answers stay focused on the selected building and show the ASU sources used.
+                    </p>
+                  )}
+                </div>
+              </section>
             </aside>
           </div>
         ) : !buildingsLoading && !buildingsError ? (
