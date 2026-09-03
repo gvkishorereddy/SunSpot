@@ -482,9 +482,6 @@ export function StudyScout() {
             <h1 className="text-balance text-4xl font-black leading-[1.04] tracking-[-0.045em] text-ink sm:text-6xl">
               Find your study spot <span className="text-maroon">before you walk in.</span>
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-stone-600 sm:text-lg">
-              Check official operating hours and recent student crowd reports across ASU. When no fresh report exists, SunSpot shows a transparent estimate.
-            </p>
           </div>
         </div>
       </section>
