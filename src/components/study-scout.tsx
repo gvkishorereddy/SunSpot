@@ -201,6 +201,22 @@ function EventRow({ event, happeningNow }: { event: AsuEvent; happeningNow: bool
   );
 }
 
+function FormattedAnswer({ answer }: { answer: string }) {
+  return (
+    <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-700">
+      {answer.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+        part.startsWith("**") && part.endsWith("**") ? (
+          <strong key={index} className="font-extrabold text-ink">
+            {part.slice(2, -2)}
+          </strong>
+        ) : (
+          part
+        ),
+      )}
+    </p>
+  );
+}
+
 export function StudyScout() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
@@ -1078,7 +1094,7 @@ export function StudyScout() {
                         </span>
                         <span className="text-xs font-semibold text-stone-400">Grounded in {askResult.sources.length} sources</span>
                       </div>
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-stone-700">{askResult.answer}</p>
+                      <FormattedAnswer answer={askResult.answer} />
                       {askResult.notice && (
                         <p className="mt-3 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">{askResult.notice}</p>
                       )}
