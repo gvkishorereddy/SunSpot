@@ -2,7 +2,6 @@
 
 SunSpot is a mobile-first hackathon MVP for checking official hours, same-day ASU events, and recent community-submitted crowd levels at study spaces across four ASU campuses. Study Scout shows only reports from the previous hour and verifies approximate proximity before accepting a report.
 
-SunSpot is an independent student-built demo and is not affiliated with or endorsed by Arizona State University.
 
 ## Stack
 
