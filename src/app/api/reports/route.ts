@@ -11,6 +11,7 @@ import {
   summarizeReports,
   type RecentReport,
 } from "@/lib/study-scout";
+import { evaluateBuildingHours } from "@/lib/operating-hours";
 import { getSupabaseAdmin } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   try {
     const now = new Date();
     const { data, error } = await getSupabaseAdmin()
-      .from("reports")
+      .from("crowd_reports")
       .select(
         "id, crowd_level, note, distance_m, location_accuracy_m, created_at",
       )
@@ -57,6 +58,13 @@ export async function GET(request: NextRequest) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch {
+    if (process.env.NODE_ENV === "development") {
+      return NextResponse.json(
+        { reports: [], count: 0, averageCrowdLevel: null, demo: true },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     return errorResponse(
       "server_error",
       "We could not load recent reports. Please try again.",
@@ -104,7 +112,9 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const { data: building, error: buildingError } = await supabase
       .from("buildings")
-      .select("id, latitude, longitude, verification_radius_m")
+      .select(
+        "id, latitude, longitude, verification_radius_m, weekly_hours, special_hours, timezone",
+      )
       .eq("id", buildingId)
       .eq("active", true)
       .maybeSingle();
@@ -115,6 +125,17 @@ export async function POST(request: NextRequest) {
         "invalid_building",
         "That study location is not available.",
         404,
+      );
+    }
+
+    const operatingStatus = evaluateBuildingHours(building);
+    if (!operatingStatus.isOpen) {
+      return errorResponse(
+        "building_closed",
+        operatingStatus.status === "unknown"
+          ? "Reports are paused until this building's hours can be verified."
+          : "Crowd reports are only accepted while this building is open.",
+        409,
       );
     }
 
@@ -137,7 +158,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: report, error: insertError } = await supabase
-      .from("reports")
+      .from("crowd_reports")
       .insert({
         building_id: buildingId,
         crowd_level: crowdLevel,
