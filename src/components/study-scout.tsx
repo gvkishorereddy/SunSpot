@@ -3,6 +3,7 @@
 import {
   AlertCircle,
   Building2,
+  CalendarClock,
   CalendarDays,
   Check,
   ChevronDown,
@@ -22,6 +23,12 @@ import {
   ASU_ACADEMIC_CALENDAR_SOURCE,
   ASU_CALENDAR_VERIFIED_ON,
 } from "@/data/asu-academic-calendar";
+import {
+  ASU_EVENTS_SOURCE,
+  type AsuEvent,
+  formatAsuEventTime,
+  groupTodayEvents,
+} from "@/lib/asu-events";
 import { resolveCrowdSignal } from "@/lib/crowd-estimate";
 import { evaluateBuildingHours } from "@/lib/operating-hours";
 import { crowdLabel, type RecentReport } from "@/lib/study-scout";
@@ -52,6 +59,12 @@ type ReportsPayload = {
   reports: RecentReport[];
   count: number;
   averageCrowdLevel: number | null;
+};
+
+type EventsPayload = {
+  events: AsuEvent[];
+  fetchedAt: string;
+  sourceUrl: string;
 };
 
 type LocationState =
@@ -125,6 +138,42 @@ function formatVerifiedDate(value: string | null) {
   }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
+function EventRow({ event, happeningNow }: { event: AsuEvent; happeningNow: boolean }) {
+  return (
+    <li className="rounded-2xl border border-stone-200 p-4">
+      <div className="flex items-start gap-3">
+        <span
+          className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${
+            happeningNow ? "bg-emerald-100 text-emerald-700" : "bg-gold/20 text-gold-dark"
+          }`}
+        >
+          <CalendarClock aria-hidden="true" size={17} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              className="font-extrabold text-ink hover:text-maroon hover:underline"
+              href={event.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {event.title}
+            </a>
+            {happeningNow && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-emerald-700">
+                Happening now
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm font-bold text-maroon">{formatAsuEventTime(event)} MST</p>
+          <p className="mt-1 text-sm leading-5 text-stone-500">{event.location}</p>
+        </div>
+        <ExternalLink aria-hidden="true" className="mt-1 shrink-0 text-stone-300" size={15} />
+      </div>
+    </li>
+  );
+}
+
 export function StudyScout() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [selectedBuildingId, setSelectedBuildingId] = useState("");
@@ -136,6 +185,10 @@ export function StudyScout() {
   const [averageCrowdLevel, setAverageCrowdLevel] = useState<number | null>(null);
   const [reportsLoading, setReportsLoading] = useState(false);
   const [reportsError, setReportsError] = useState(false);
+  const [events, setEvents] = useState<AsuEvent[]>([]);
+  const [eventsSourceUrl, setEventsSourceUrl] = useState(ASU_EVENTS_SOURCE);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState(false);
   const [crowdLevel, setCrowdLevel] = useState(5);
   const [note, setNote] = useState("");
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
@@ -160,6 +213,7 @@ export function StudyScout() {
     () => buildings.find((building) => building.id === selectedBuildingId),
     [buildings, selectedBuildingId],
   );
+  const selectedBuildingSlug = selectedBuilding?.slug ?? "";
 
   const operatingStatus = useMemo(
     () => (selectedBuilding && now ? evaluateBuildingHours(selectedBuilding, now) : null),
@@ -172,6 +226,11 @@ export function StudyScout() {
         ? resolveCrowdSignal(selectedBuilding, reports, now, operatingStatus ?? undefined)
         : null,
     [selectedBuilding, reports, now, operatingStatus],
+  );
+
+  const todayEvents = useMemo(
+    () => (now ? groupTodayEvents(events, now) : { happeningNow: [], laterToday: [] }),
+    [events, now],
   );
 
   const reportsAllowed = operatingStatus?.isOpen === true;
@@ -199,6 +258,31 @@ export function StudyScout() {
       }
     },
     [selectedBuildingId],
+  );
+
+  const loadEvents = useCallback(
+    async (showLoading = false) => {
+      if (!selectedBuildingSlug) return;
+      if (showLoading) setEventsLoading(true);
+
+      try {
+        const response = await fetch(
+          `/api/events?buildingSlug=${encodeURIComponent(selectedBuildingSlug)}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) throw new Error("Unable to load events");
+        const payload = (await response.json()) as EventsPayload;
+        setEvents(payload.events);
+        setEventsSourceUrl(payload.sourceUrl);
+        setEventsError(false);
+      } catch {
+        setEvents([]);
+        setEventsError(true);
+      } finally {
+        if (showLoading) setEventsLoading(false);
+      }
+    },
+    [selectedBuildingSlug],
   );
 
   useEffect(() => {
@@ -245,6 +329,16 @@ export function StudyScout() {
     };
   }, [loadReports, selectedBuildingId]);
 
+  useEffect(() => {
+    if (!selectedBuildingSlug) return;
+    const initialLoadTimer = window.setTimeout(() => void loadEvents(true), 0);
+    const refreshTimer = window.setInterval(() => void loadEvents(), 5 * 60_000);
+    return () => {
+      window.clearTimeout(initialLoadTimer);
+      window.clearInterval(refreshTimer);
+    };
+  }, [loadEvents, selectedBuildingSlug]);
+
   function resetSubmissionState() {
     setCoordinates(null);
     setLocationState("idle");
@@ -252,6 +346,9 @@ export function StudyScout() {
     setReports([]);
     setReportCount(0);
     setAverageCrowdLevel(null);
+    setEvents([]);
+    setEventsError(false);
+    setEventsSourceUrl(ASU_EVENTS_SOURCE);
   }
 
   function chooseBuilding(id: string) {
@@ -403,11 +500,11 @@ export function StudyScout() {
             </div>
             <button
               type="button"
-              onClick={() => void loadReports(true)}
-              disabled={!selectedBuildingId || reportsLoading}
+              onClick={() => void Promise.all([loadReports(true), loadEvents(true)])}
+              disabled={!selectedBuildingId || reportsLoading || eventsLoading}
               className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-maroon disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <RefreshCw aria-hidden="true" size={16} className={reportsLoading ? "animate-spin" : ""} />
+              <RefreshCw aria-hidden="true" size={16} className={reportsLoading || eventsLoading ? "animate-spin" : ""} />
               Refresh
             </button>
           </div>
@@ -460,8 +557,8 @@ export function StudyScout() {
 
         {selectedBuilding ? (
           <div className="grid gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-start">
-            <div className="space-y-7">
-              <section aria-labelledby="building-heading" className="rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
+            <div className="flex flex-col gap-7">
+              <section aria-labelledby="building-heading" className="order-2 rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -525,7 +622,73 @@ export function StudyScout() {
                 </div>
               </section>
 
-              <section aria-labelledby="crowd-heading" className="overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-card">
+              <section aria-labelledby="events-heading" className="order-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="eyebrow">At this building</p>
+                    <h2 id="events-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+                      Today’s events
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Happening now and still to come today, in Arizona time.
+                    </p>
+                  </div>
+                  <a
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-maroon hover:underline"
+                    href={eventsSourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Official ASU Events <ExternalLink aria-hidden="true" size={13} />
+                  </a>
+                </div>
+
+                {eventsLoading ? (
+                  <div aria-label="Loading today's events" className="mt-5 space-y-3">
+                    {[0, 1].map((item) => (
+                      <div key={item} className="h-24 animate-pulse rounded-2xl bg-stone-100" />
+                    ))}
+                  </div>
+                ) : eventsError ? (
+                  <div role="alert" className="mt-5 flex items-start gap-3 rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">
+                    <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+                    ASU’s event schedule could not be loaded. Try refreshing in a moment.
+                  </div>
+                ) : todayEvents.happeningNow.length === 0 && todayEvents.laterToday.length === 0 ? (
+                  <div className="mt-5 rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6 text-center">
+                    <CalendarDays aria-hidden="true" className="mx-auto text-gold-dark" size={26} />
+                    <p className="mt-3 font-extrabold text-ink">No events remaining today</p>
+                    <p className="mt-1 text-sm leading-6 text-stone-500">
+                      ASU Events does not list anything happening now or later today at {selectedBuilding.name}.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-5 space-y-5">
+                    {todayEvents.happeningNow.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 text-sm font-extrabold text-emerald-700">Happening now</h3>
+                        <ol className="space-y-3">
+                          {todayEvents.happeningNow.map((event) => (
+                            <EventRow key={event.id} event={event} happeningNow />
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                    {todayEvents.laterToday.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 text-sm font-extrabold text-stone-700">Later today</h3>
+                        <ol className="space-y-3">
+                          {todayEvents.laterToday.map((event) => (
+                            <EventRow key={event.id} event={event} happeningNow={false} />
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
+
+              <section aria-labelledby="crowd-heading" className="order-1 overflow-hidden rounded-3xl border border-maroon/20 bg-white shadow-[0_22px_60px_-34px_rgba(140,29,64,0.55)]">
                 <div className="border-b border-stone-100 p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -763,7 +926,6 @@ export function StudyScout() {
           </div>
           <div className="mt-4 flex flex-col gap-1 border-t border-stone-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <p>Schedule data checked {formatVerifiedDate(ASU_CALENDAR_VERIFIED_ON)}. Always confirm official hours before traveling.</p>
-            <p>Independent student-built demo · Not affiliated with or endorsed by ASU.</p>
           </div>
         </div>
       </footer>

@@ -1,6 +1,6 @@
 # SunSpot — Study Scout
 
-SunSpot is a mobile-first hackathon MVP for checking recent, community-submitted crowd levels at Tempe study spaces. Study Scout shows only reports from the previous hour and verifies approximate proximity before accepting a report.
+SunSpot is a mobile-first hackathon MVP for checking official hours, same-day ASU events, and recent community-submitted crowd levels at study spaces across four ASU campuses. Study Scout shows only reports from the previous hour and verifies approximate proximity before accepting a report.
 
 SunSpot is an independent student-built demo and is not affiliated with or endorsed by Arizona State University.
 
@@ -65,7 +65,7 @@ The Supabase CLI is installed as a development dependency and the local Supabase
    pnpm exec supabase db push
    ```
 
-The migration creates `buildings` and `reports`, enables RLS on both public tables, creates no public policies, adds report indexes, and idempotently seeds Hayden Library and Noble Library.
+The migrations create `buildings` and `reports`, enable RLS on both public tables, add report indexes, and idempotently seed supported libraries, student centers, and student unions across Downtown Phoenix, Polytechnic, Tempe, and West Valley.
 
 ### SQL Dashboard fallback
 
@@ -73,20 +73,22 @@ If CLI linking is unavailable:
 
 1. Open the existing Supabase project dashboard.
 2. Go to **SQL Editor → New query**.
-3. Open `supabase/migrations/001_study_scout.sql` locally and paste the entire file into the editor.
-4. Select **Run** once.
-5. In **Table Editor**, confirm that `buildings` and `reports` exist and show RLS as enabled.
-6. In `buildings`, confirm rows exist for `hayden-library-tempe` and `noble-library-tempe`.
+3. Open each file in `supabase/migrations` in numeric order, paste it into the editor, and select **Run** once before moving to the next file.
+4. In **Table Editor**, confirm that `buildings` and `crowd_reports` exist and show RLS as enabled.
+5. In `buildings`, confirm that the supported four-campus locations are present.
 
 The seed uses `ON CONFLICT (slug)`, so re-running the complete migration is safe.
 
 ## API
 
 - `GET /api/buildings` returns active buildings.
+- `GET /api/events?buildingSlug=<slug>` fetches the selected building’s official ASU events for today, with a five-minute cache.
 - `GET /api/reports?buildingId=<uuid>` returns newest-first reports from the previous hour plus count and average.
 - `POST /api/reports` validates all input, recomputes proximity on the server, and stores only distance and reported accuracy—not raw coordinates.
 
 All database access uses the server-only Supabase client. Because there are no public RLS policies, a browser cannot read or insert rows directly with a public key.
+
+The events route reads public event cards from [ASU Events](https://asuevents.asu.edu/), matches both the selected venue and campus, and returns exact event links. The client separates events happening now from those later today using the `America/Phoenix` time zone.
 
 ## Location verification
 
