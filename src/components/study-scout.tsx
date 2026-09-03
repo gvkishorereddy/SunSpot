@@ -167,7 +167,7 @@ function formatVerifiedDate(value: string | null) {
 
 function EventRow({ event, happeningNow }: { event: AsuEvent; happeningNow: boolean }) {
   return (
-    <li className="rounded-2xl border border-stone-200 p-4">
+    <li className="min-w-0 rounded-2xl border border-stone-200 p-3.5 sm:p-4">
       <div className="flex items-start gap-3">
         <span
           className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl ${
@@ -195,7 +195,7 @@ function EventRow({ event, happeningNow }: { event: AsuEvent; happeningNow: bool
           <p className="mt-1 text-sm font-bold text-maroon">{formatAsuEventTime(event)} MST</p>
           <p className="mt-1 text-sm leading-5 text-stone-500">{event.location}</p>
         </div>
-        <ExternalLink aria-hidden="true" className="mt-1 shrink-0 text-stone-300" size={15} />
+        <ExternalLink aria-hidden="true" className="mt-1 hidden shrink-0 text-stone-300 sm:block" size={15} />
       </div>
     </li>
   );
@@ -539,46 +539,47 @@ export function StudyScout() {
   const displayLabel = crowdSignal?.label ?? crowdLabel(averageCrowdLevel);
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen min-w-0 overflow-x-clip">
       <header className="border-b border-white/10 bg-maroon text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-          <a className="flex items-center gap-3" href="#top" aria-label="SunSpot home">
-            <span className="grid size-10 place-items-center rounded-2xl bg-gold text-maroon shadow-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-8 sm:py-5">
+          <a className="flex min-w-0 items-center gap-2.5 sm:gap-3" href="#top" aria-label="SunSpot home">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gold text-maroon shadow-sm sm:size-10 sm:rounded-2xl">
               <SunMedium aria-hidden="true" size={22} strokeWidth={2.2} />
             </span>
-            <span>
-              <span className="block text-lg font-extrabold tracking-tight">SunSpot</span>
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
+            <span className="min-w-0">
+              <span className="block text-base font-extrabold tracking-tight sm:text-lg">SunSpot</span>
+              <span className="block text-[9px] font-semibold uppercase tracking-[0.18em] text-white/60 sm:text-[11px] sm:tracking-[0.2em]">
                 Study Scout
               </span>
             </span>
           </a>
-          <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs font-medium text-white/70">
-            4 ASU campuses
+          <span className="shrink-0 rounded-full border border-white/15 bg-white/8 px-2.5 py-1.5 text-[11px] font-medium text-white/70 sm:px-3 sm:text-xs">
+            <span className="sm:hidden">4 campuses</span>
+            <span className="hidden sm:inline">4 ASU campuses</span>
           </span>
         </div>
       </header>
 
       <section id="top" className="hero-grid border-b border-stone-200/80">
-        <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 py-9 sm:px-8 sm:py-12 lg:py-16">
           <div className="max-w-2xl">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-maroon">
+            <div className="mb-4 inline-flex max-w-full items-center gap-2 rounded-full border border-gold/35 bg-gold/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.13em] text-maroon sm:mb-5 sm:text-xs sm:tracking-[0.16em]">
               <span className="size-1.5 rounded-full bg-gold-dark" />
               Live + schedule-aware
             </div>
-            <h1 className="text-balance text-4xl font-black leading-[1.04] tracking-[-0.045em] text-ink sm:text-6xl">
+            <h1 className="text-balance text-[2rem] font-black leading-[1.04] tracking-[-0.045em] text-ink sm:text-5xl lg:text-6xl">
               Find your study spot <span className="text-maroon">before you walk in.</span>
             </h1>
           </div>
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8 sm:py-12">
-        <section aria-labelledby="location-heading" className="mb-7">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-            <div>
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10 lg:py-12">
+        <section aria-labelledby="location-heading" className="mb-6 min-w-0 sm:mb-7">
+          <div className="mb-4 flex items-end justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
               <p className="eyebrow">Location</p>
-              <h2 id="location-heading" className="mt-1 text-xl font-extrabold tracking-tight text-ink">
+              <h2 id="location-heading" className="mt-1 text-lg font-extrabold tracking-tight text-ink sm:text-xl">
                 Where are you headed?
               </h2>
             </div>
@@ -586,21 +587,21 @@ export function StudyScout() {
               type="button"
               onClick={() => void Promise.all([loadReports(true), loadEvents(true)])}
               disabled={!selectedBuildingId || reportsLoading || eventsLoading}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-maroon disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-maroon disabled:cursor-not-allowed disabled:opacity-50 sm:gap-2 sm:px-3 sm:text-sm"
             >
               <RefreshCw aria-hidden="true" size={16} className={reportsLoading || eventsLoading ? "animate-spin" : ""} />
               Refresh
             </button>
           </div>
 
-          <div className="mb-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filter by campus">
+          <div className="horizontal-scroll mb-3 flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Filter by campus">
             {campuses.map((campus) => (
               <button
                 key={campus}
                 type="button"
                 aria-pressed={campusFilter === campus}
                 onClick={() => chooseCampus(campus)}
-                className={`min-h-10 shrink-0 rounded-full border px-4 text-sm font-bold transition ${
+                className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-bold transition ${
                   campusFilter === campus
                     ? "border-maroon bg-maroon text-white"
                     : "border-stone-300 bg-white text-stone-600 hover:border-maroon hover:text-maroon"
@@ -614,7 +615,7 @@ export function StudyScout() {
           <div className="relative">
             <MapPin aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-maroon" size={20} />
             <select
-              className="h-14 w-full appearance-none rounded-2xl border border-stone-300 bg-white pl-12 pr-12 text-base font-bold text-ink shadow-card outline-none transition focus:border-gold-dark focus:ring-4 focus:ring-gold/20 disabled:cursor-wait disabled:text-stone-400"
+              className="h-14 w-full min-w-0 appearance-none truncate rounded-2xl border border-stone-300 bg-white pl-11 pr-11 text-sm font-bold text-ink shadow-card outline-none transition focus:border-gold-dark focus:ring-4 focus:ring-gold/20 disabled:cursor-wait disabled:text-stone-400 sm:pl-12 sm:pr-12 sm:text-base"
               value={selectedBuildingId}
               onChange={(event) => chooseBuilding(event.target.value)}
               disabled={buildingsLoading || filteredBuildings.length === 0}
@@ -648,13 +649,13 @@ export function StudyScout() {
         </section>
 
         {selectedBuilding ? (
-          <div className="grid gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-start">
-            <div className="flex flex-col gap-7">
-              <section aria-labelledby="events-heading" className="order-3 rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
+          <div className="grid min-w-0 gap-5 sm:gap-7 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)] lg:items-start">
+            <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-7">
+              <section aria-labelledby="events-heading" className="order-3 min-w-0 rounded-3xl border border-stone-200 bg-white p-4 shadow-card sm:p-6">
+                <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
+                  <div className="min-w-0">
                     <p className="eyebrow">At this building</p>
-                    <h2 id="events-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+                    <h2 id="events-heading" className="mt-1 text-xl font-black tracking-tight text-ink sm:text-2xl">
                       Today’s events
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-stone-500">
@@ -716,16 +717,16 @@ export function StudyScout() {
                 )}
               </section>
 
-              <section aria-labelledby="crowd-heading" className="order-1 overflow-hidden rounded-3xl border border-maroon/20 bg-white shadow-[0_22px_60px_-34px_rgba(140,29,64,0.55)]">
-                <div className="border-b border-stone-100 p-5 sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
+              <section aria-labelledby="crowd-heading" className="order-1 min-w-0 overflow-hidden rounded-3xl border border-maroon/20 bg-white shadow-[0_22px_60px_-34px_rgba(140,29,64,0.55)]">
+                <div className="border-b border-stone-100 p-4 sm:p-6">
+                  <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
                     <div>
                       <p className="eyebrow">Right now</p>
-                      <h2 id="crowd-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+                      <h2 id="crowd-heading" className="mt-1 text-xl font-black tracking-tight text-ink sm:text-2xl">
                         Crowd level
                       </h2>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div className="flex max-w-full flex-wrap gap-2 sm:justify-end">
                       {operatingStatus && (
                         <span className={`rounded-full px-3 py-1.5 text-sm font-extrabold ring-1 ring-inset ${hoursTone(operatingStatus.status)}`}>
                           {operatingStatus.status === "open"
@@ -741,21 +742,21 @@ export function StudyScout() {
                     </div>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-2 divide-x divide-stone-200 rounded-2xl bg-stone-50 p-4">
-                    <div className="pr-4">
+                  <div className="mt-5 grid grid-cols-2 divide-x divide-stone-200 rounded-2xl bg-stone-50 p-3.5 sm:mt-6 sm:p-4">
+                    <div className="min-w-0 pr-3 sm:pr-4">
                       <div className="flex items-center gap-2 text-sm font-semibold text-stone-500">
                         <Users aria-hidden="true" size={17} /> Crowd score
                       </div>
-                      <p className="mt-2 text-4xl font-black tracking-[-0.04em] text-ink">
+                      <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-ink sm:text-4xl">
                         {displayScore === null || displayScore === undefined ? "—" : displayScore}
                         <span className="ml-1 text-base font-bold text-stone-400">/10</span>
                       </p>
                     </div>
-                    <div className="pl-4">
+                    <div className="min-w-0 pl-3 sm:pl-4">
                       <div className="flex items-center gap-2 text-sm font-semibold text-stone-500">
                         <Clock3 aria-hidden="true" size={17} /> Last hour
                       </div>
-                      <p className="mt-2 text-4xl font-black tracking-[-0.04em] text-ink">{reportCount}</p>
+                      <p className="mt-2 text-3xl font-black tracking-[-0.04em] text-ink sm:text-4xl">{reportCount}</p>
                       <p className="text-sm font-medium text-stone-400">{reportCount === 1 ? "report" : "reports"}</p>
                     </div>
                   </div>
@@ -800,7 +801,7 @@ export function StudyScout() {
                         </span>
                       </div>
 
-                      <div className="mt-5 overflow-x-auto pb-2">
+                      <div className="horizontal-scroll mt-5 overflow-x-auto pb-3">
                         <ol className="flex min-w-max items-end gap-2" aria-label="Hourly crowd forecast">
                           {crowdForecast.map((point) => (
                             <li
@@ -868,7 +869,7 @@ export function StudyScout() {
                       <p className="mt-1 text-sm text-rose-700">Try refreshing in a moment.</p>
                     </div>
                   ) : reports.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-8 text-center">
+                    <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-6 text-center sm:p-8">
                       <SunMedium aria-hidden="true" className="mx-auto text-gold-dark" size={28} />
                       <p className="mt-3 font-extrabold text-ink">No reports in the last hour</p>
                       <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-stone-500">
@@ -903,10 +904,10 @@ export function StudyScout() {
               </section>
             </div>
 
-            <aside className="lg:sticky lg:top-6">
-              <form onSubmit={submitReport} className="rounded-3xl border border-stone-200 bg-white p-5 shadow-card sm:p-6" aria-labelledby="report-heading">
+            <aside className="order-2 min-w-0 lg:sticky lg:top-6">
+              <form onSubmit={submitReport} className="min-w-0 rounded-3xl border border-stone-200 bg-white p-4 shadow-card sm:p-6" aria-labelledby="report-heading">
                 <p className="eyebrow">Help the next student</p>
-                <h2 id="report-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">Share a crowd report</h2>
+                <h2 id="report-heading" className="mt-1 text-xl font-black tracking-tight text-ink sm:text-2xl">Share a crowd report</h2>
                 <p className="mt-2 text-sm leading-6 text-stone-500">It takes a few seconds and stays visible for one hour.</p>
 
                 {!reportsAllowed && operatingStatus && (
@@ -1010,15 +1011,15 @@ export function StudyScout() {
                 </div>
               </form>
 
-              <section aria-labelledby="ask-heading" className="mt-7 overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-card">
-                <div className="bg-gradient-to-br from-violet-50 via-white to-gold/10 p-5 sm:p-6">
+              <section aria-labelledby="ask-heading" className="mt-5 min-w-0 overflow-hidden rounded-3xl border border-violet-200 bg-white shadow-card sm:mt-7">
+                <div className="bg-gradient-to-br from-violet-50 via-white to-gold/10 p-4 sm:p-6">
                   <div className="flex items-start gap-3">
                     <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-violet-100 text-violet-700">
                       <Sparkles aria-hidden="true" size={20} />
                     </span>
                     <div>
                       <p className="eyebrow">Grounded campus answers</p>
-                      <h2 id="ask-heading" className="mt-1 text-2xl font-black tracking-tight text-ink">
+                      <h2 id="ask-heading" className="mt-1 text-xl font-black tracking-tight text-ink sm:text-2xl">
                         Ask SunSpot
                       </h2>
                       <p className="mt-2 text-sm leading-6 text-stone-500">
@@ -1041,7 +1042,7 @@ export function StudyScout() {
                           setAskError(false);
                           setAskResult(null);
                         }}
-                        className="rounded-full border border-violet-200 bg-white px-3 py-1.5 text-left text-xs font-bold text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                        className="max-w-full rounded-full border border-violet-200 bg-white px-3 py-2 text-left text-xs font-bold leading-5 text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
                       >
                         {suggestion}
                       </button>
@@ -1062,12 +1063,12 @@ export function StudyScout() {
                       placeholder="e.g. Is this building open after my 7 PM class?"
                       className="w-full resize-none rounded-2xl border border-violet-200 bg-white p-3.5 text-sm leading-6 text-ink outline-none transition placeholder:text-stone-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
                     />
-                    <div className="mt-2 flex items-center justify-between gap-3">
+                    <div className="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                       <span className="text-xs font-medium tabular-nums text-stone-400">{question.length}/300</span>
                       <button
                         type="submit"
                         disabled={askLoading || question.trim().length < 3}
-                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-extrabold text-white transition hover:bg-violet-800 focus:outline-none focus:ring-4 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-stone-300"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-violet-700 px-4 text-sm font-extrabold text-white transition hover:bg-violet-800 focus:outline-none focus:ring-4 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-stone-300 sm:w-auto"
                       >
                         {askLoading ? <RefreshCw aria-hidden="true" className="animate-spin" size={16} /> : <Sparkles aria-hidden="true" size={16} />}
                         {askLoading ? "Checking ASU sources…" : "Get answer"}
@@ -1076,7 +1077,7 @@ export function StudyScout() {
                   </form>
                 </div>
 
-                <div className="border-t border-stone-100 p-5 sm:p-6" aria-live="polite">
+                <div className="border-t border-stone-100 p-4 sm:p-6" aria-live="polite">
                   {askLoading ? (
                     <div className="space-y-2" aria-label="Loading answer">
                       <div className="h-4 w-11/12 animate-pulse rounded bg-stone-100" />
@@ -1137,8 +1138,8 @@ export function StudyScout() {
       </div>
 
       <footer className="border-t border-stone-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-7 text-xs leading-5 text-stone-500 sm:px-8">
-          <div className="flex flex-wrap gap-x-5 gap-y-2 font-semibold">
+        <div className="mx-auto max-w-6xl px-4 py-7 text-xs leading-5 text-stone-500 sm:px-8">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 font-semibold sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
             <a className="hover:text-maroon hover:underline" href={ASU_ACADEMIC_CALENDAR_SOURCE} target="_blank" rel="noreferrer">ASU academic calendar</a>
             <a className="hover:text-maroon hover:underline" href="https://lib.asu.edu/hours" target="_blank" rel="noreferrer">ASU Library hours</a>
             <a className="hover:text-maroon hover:underline" href="https://eoss.asu.edu/student-unions/hours-of-operation" target="_blank" rel="noreferrer">ASU student union hours</a>
